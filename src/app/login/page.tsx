@@ -15,7 +15,7 @@ export default async function AdminPage() {
   const token = cookieStore.get('aerotech_admin_token')?.value;
 
   if (token !== 'authenticated_session_active') {
-    redirect('/admin/login');
+    redirect('/login');
   }
 
   // 2. Fetch orders
