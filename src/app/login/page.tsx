@@ -1,209 +1,114 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Package, ExternalLink } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { Cpu, Lock, User, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import AdminOrderRow from '@/components/AdminOrderRow';
-import AddProductModal from '@/components/AddProductModal';
-import AdminLogoutButton from '@/components/AdminLogoutButton';
 
-export const revalidate = 0;
+export default function LoginPage() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-export default async function AdminPage() {
-  // 1. Verify admin session cookie on the server
-  const cookieStore = await cookies();
-  const token = cookieStore.get('aerotech_admin_token')?.value;
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  if (token !== 'authenticated_session_active') {
-    redirect('/login');
-  }
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
 
-  // 2. Fetch orders
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('*, order_items(*, products(title))')
-    .order('created_at', { ascending: false });
+      const data = await res.json();
 
-  // 3. Fetch products
-  const { data: products } = await supabase
-    .from('products')
-    .select('id, title, price, stock_quantity, slug')
-    .order('stock_quantity', { ascending: true });
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid credentials');
+      }
 
-  // 4. Fetch categories for modal dropdown
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, name')
-    .order('name', { ascending: true });
-
-  const totalOrders = orders?.length || 0;
-  const totalRevenue = orders?.reduce((sum, order) => sum + Number(order.total_amount || 0), 0) || 0;
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const lowStockCount = products?.filter((p) => p.stock_quantity < 10).length || 0;
+      // Hard navigation to the protected dashboard
+      window.location.href = '/admin';
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-6">
-        <div>
-          <span className="text-xs uppercase tracking-widest text-emerald-400 font-semibold">
-            Admin Console
-          </span>
-          <h1 className="text-3xl font-extrabold text-white mt-1">Store Performance & Operations</h1>
+    <div className="min-h-[85vh] flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="text-center mb-8 relative z-10">
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-slate-950 border border-slate-800 text-emerald-400 mb-4 shadow-sm shadow-emerald-500/10">
+            <Cpu className="w-7 h-7" />
+          </div>
+          <h1 className="text-2xl font-black text-white tracking-tight">Admin Console</h1>
+          <p className="text-slate-400 text-xs mt-1.5">Sign in to manage AeroTech inventory & orders</p>
         </div>
-        <div className="flex items-center gap-3">
-          <AddProductModal categories={categories || []} />
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition"
+
+        {error && (
+          <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4 text-xs relative z-10">
+          <div>
+            <label className="block text-slate-300 font-semibold mb-1.5">Username</label>
+            <div className="relative">
+              <input
+                required
+                type="text"
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl pl-9 pr-3.5 py-2.5 text-white placeholder-slate-600 focus:outline-none transition"
+              />
+              <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-300 font-semibold mb-1.5">Password</label>
+            <div className="relative">
+              <input
+                required
+                type="password"
+                placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl pl-9 pr-3.5 py-2.5 text-white placeholder-slate-600 focus:outline-none transition"
+              />
+              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-2 inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-emerald-500/10 cursor-pointer"
           >
-            <span>Store</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <span>Sign In to Console</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center border-t border-slate-800/80 pt-4">
+          <Link href="/" className="text-[11px] text-slate-500 hover:text-emerald-400 transition">
+            ← Return to storefront
           </Link>
-          <AdminLogoutButton />
         </div>
       </div>
-
-      {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-            <span>Total Revenue</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-black text-white">${totalRevenue.toFixed(2)}</div>
-          <span className="text-[11px] text-emerald-400 mt-1 block">Live settled orders</span>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-            <span>Orders Placed</span>
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-              <ShoppingCart className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-black text-white">{totalOrders}</div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Lifetime volume</span>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-            <span>Average Order Value</span>
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-black text-white">${averageOrderValue.toFixed(2)}</div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Per customer checkout</span>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-            <span>Inventory Alert</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-black text-white">{lowStockCount} Items</div>
-          <span className="text-[11px] text-amber-400/80 mt-1 block">&lt; 10 units in stock</span>
-        </div>
-      </div>
-
-      {/* Orders Table */}
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-slate-800 flex justify-between items-center">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <ShoppingCart className="w-4 h-4 text-emerald-400" />
-            Recent Orders
-          </h2>
-          <span className="text-xs text-slate-500 font-mono">{orders?.length || 0} records</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/60 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
-              <tr>
-                <th className="px-5 py-3">Order ID</th>
-                <th className="px-5 py-3">Customer</th>
-                <th className="px-5 py-3">Items</th>
-                <th className="px-5 py-3">Total</th>
-                <th className="px-5 py-3">Payment</th>
-                <th className="px-5 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
-              {orders?.map((order) => (
-                <AdminOrderRow key={order.id} order={order} />
-              ))}
-
-              {(!orders || orders.length === 0) && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                    No orders recorded yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Inventory Status Table */}
-      <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-slate-800 flex justify-between items-center">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Package className="w-4 h-4 text-emerald-400" />
-            Inventory & Stock Health
-          </h2>
-          <span className="text-xs text-slate-500 font-mono">{products?.length || 0} products</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/60 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
-              <tr>
-                <th className="px-5 py-3">Product</th>
-                <th className="px-5 py-3">Price</th>
-                <th className="px-5 py-3">Remaining Stock</th>
-                <th className="px-5 py-3">Stock Health</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
-              {products?.map((prod) => {
-                const isLow = prod.stock_quantity < 10;
-                return (
-                  <tr key={prod.id} className="hover:bg-slate-800/30 transition">
-                    <td className="px-5 py-3.5 font-medium text-white">
-                      <Link href={`/products/${prod.slug}`} className="hover:text-emerald-400 transition">
-                        {prod.title}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-300 font-mono">
-                      ${Number(prod.price).toFixed(2)}
-                    </td>
-                    <td className="px-5 py-3.5 font-semibold text-slate-200">
-                      {prod.stock_quantity} units
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {isLow ? (
-                        <span className="inline-flex items-center gap-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded text-[10px] font-semibold border border-amber-500/20">
-                          Low Stock
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] font-semibold border border-emerald-500/20">
-                          Optimal
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </div>
   );
 }
