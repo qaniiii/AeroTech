@@ -1,69 +1,143 @@
-import Image from "next/image";
+import { supabase } from '@/lib/supabase';
+import AddToCartButton from '@/components/AddToCartButton';
+import CatalogControls from '@/components/CatalogControls';
+import Link from 'next/link';
 
-export default function Home() {
+export const revalidate = 0;
+
+interface Props {
+  searchParams: Promise<{ category?: string; search?: string }>;
+}
+
+export default async function HomePage({ searchParams }: Props) {
+  const { category, search } = await searchParams;
+
+  // 1. Fetch categories
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name, slug')
+    .order('name', { ascending: true });
+
+  // 2. Fetch products with optional categories
+  let query = supabase
+    .from('products')
+    .select('*, categories(name, slug)')
+    .order('created_at', { ascending: false });
+
+  // Filter by category slug if selected
+  if (category) {
+    const selectedCat = categories?.find((c) => c.slug === category);
+    if (selectedCat) {
+      query = query.eq('category_id', selectedCat.id);
+    }
+  }
+
+  // Filter by search keyword
+  if (search && search.trim()) {
+    query = query.or(`title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%`);
+  }
+
+  const { data: products, error } = await query;
+
+  if (error) {
+    console.error('Error fetching catalog:', error);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Hero Banner */}
+      <div className="mb-8 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900/80 to-emerald-950/40 border border-slate-800 p-8 sm:p-12 relative overflow-hidden">
+        <div className="relative z-10 max-w-xl">
+          <span className="text-xs uppercase tracking-widest font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+            Engineered For Pure Performance
+          </span>
+          <h1 className="text-3xl sm:text-5xl font-black text-white mt-4 tracking-tight leading-tight">
+            Next-Gen Tech For Modern Setups.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-slate-400 text-sm sm:text-base mt-3 leading-relaxed">
+            Ultra-low latency wireless mice, studio-grade planar drivers, and ergonomic mechanical peripherals.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+
+      {/* Controls Bar */}
+      <CatalogControls categories={categories || []} />
+
+      {/* Catalog Grid */}
+      {products && products.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map((product) => {
+            const thumbnail =
+              product.images?.[0] ||
+              'https://images.unsplash.com/photo-1505740420928-5e560c06d30e';
+
+            return (
+              <div
+                key={product.id}
+                className="group bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/5"
+              >
+                <div>
+                  <Link href={`/products/${product.slug}`} className="block">
+                    <div className="rounded-xl overflow-hidden aspect-square bg-slate-950 border border-slate-800/80 mb-4 group-hover:scale-[1.02] transition duration-300">
+                      <img
+                        src={thumbnail}
+                        alt={product.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </Link>
+
+                  {product.categories?.name && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">
+                      {product.categories.name}
+                    </span>
+                  )}
+
+                  <Link href={`/products/${product.slug}`}>
+                    <h2 className="text-base font-bold text-white mt-1 hover:text-emerald-400 transition line-clamp-1">
+                      {product.title}
+                    </h2>
+                  </Link>
+
+                  <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                    {product.description}
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs text-slate-500 block leading-none">Price</span>
+                    <span className="text-lg font-black text-emerald-400">
+                      ${Number(product.price).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="w-32">
+                    <AddToCartButton
+                      product={{
+                        id: product.id,
+                        title: product.title,
+                        price: Number(product.price),
+                        image: thumbnail,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </main>
+      ) : (
+        <div className="text-center py-20 bg-slate-900/40 border border-slate-800/60 rounded-2xl">
+          <p className="text-slate-400 text-sm">No hardware matches your current search or filter.</p>
+          <Link
+            href="/"
+            className="inline-block mt-4 text-xs font-semibold text-emerald-400 hover:underline"
+          >
+            Clear all filters
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
