@@ -4,16 +4,17 @@ import type { NextRequest } from 'next/server';
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1. Exclude the login page itself to avoid redirect loops
-  if (pathname === '/admin/login') {
+  // 1. Allow the login page itself and API routes to proceed without checks
+  if (pathname.startsWith('/admin/login') || pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  // 2. Protect all /admin routes
+  // 2. Intercept /admin dashboard routes
   if (pathname.startsWith('/admin')) {
-    const adminToken = req.cookies.get('aerotech_admin_token')?.value;
+    const adminCookie = req.cookies.get('aerotech_admin_token');
 
-    if (!adminToken || adminToken !== 'authenticated_session_active') {
+    // If no valid session cookie, redirect to /admin/login
+    if (!adminCookie || adminCookie.value !== 'authenticated_session_active') {
       const loginUrl = new URL('/admin/login', req.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -22,6 +23,7 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
+// Ensure static files, images, and Next.js internal assets are never intercepted
 export const config = {
   matcher: ['/admin/:path*'],
 };

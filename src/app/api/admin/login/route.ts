@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -12,9 +11,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
     }
 
-    // Set secure auth cookie
-    const cookieStore = await cookies();
-    cookieStore.set('aerotech_admin_token', 'authenticated_session_active', {
+    const response = NextResponse.json({ success: true });
+
+    response.cookies.set({
+      name: 'aerotech_admin_token',
+      value: 'authenticated_session_active',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    return NextResponse.json({ success: true });
+    return response;
   } catch (err: any) {
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
