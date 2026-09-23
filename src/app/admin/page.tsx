@@ -1,5 +1,3 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Package, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
@@ -11,15 +9,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function AdminPage() {
-  // 1. Strict Server-side Cookie Verification
-  const cookieStore = await cookies();
-  const token = cookieStore.get('aerotech_admin_token')?.value;
-
-  if (!token || token !== 'authenticated_session_active') {
-    redirect('/admin/login');
-  }
-
-  // 2. Fetch live data
+  // 1. Fetch live data
   const { data: orders } = await supabase
     .from('orders')
     .select('*, order_items(*, products(title))')
@@ -35,7 +25,7 @@ export default async function AdminPage() {
     .select('id, name')
     .order('name', { ascending: true });
 
-  // 3. Compute KPI Metrics
+  // 2. Compute KPI Metrics
   const totalOrders = orders?.length || 0;
   const totalRevenue = orders?.reduce((sum, order) => sum + Number(order.total_amount || 0), 0) || 0;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
