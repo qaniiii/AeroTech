@@ -68,7 +68,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, price, stock_quantity, image_url, category_id } = body;
+  const { title, price, stock_quantity, description, image_url, category_id } = body;
 
   const updateData: Record<string, any> = {
     title,

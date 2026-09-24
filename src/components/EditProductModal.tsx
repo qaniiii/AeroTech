@@ -9,6 +9,7 @@ interface Product {
   title: string;
   price: number;
   stock_quantity: number;
+  description?: string;
   images?: string[];
   category_id?: string;
 }
@@ -34,6 +35,7 @@ export default function EditProductModal({
     title: product.title,
     price: product.price,
     stock_quantity: product.stock_quantity,
+    description: product.description || '',
     image_url: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : '',
     category_id: product.category_id || '',
   });
@@ -74,7 +76,7 @@ export default function EditProductModal({
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-sm">Edit Product</h3>
               <button
@@ -100,6 +102,17 @@ export default function EditProductModal({
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Product description and specifications..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 resize-none"
                 />
               </div>
 
