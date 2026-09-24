@@ -1,13 +1,14 @@
 'use client';
 
 import { useCartStore } from '@/lib/cart-store';
-import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } = useCartStore();
   const [mounted, setMounted] = useState(false);
+  const [validating, setValidating] = useState(false);
   const router = useRouter();
 
   // Avoid hydration mismatch when reading localStorage
@@ -16,6 +17,42 @@ export default function CartDrawer() {
   }, []);
 
   if (!mounted || !isOpen) return null;
+
+  const handleProceedToCheckout = async () => {
+    setValidating(true);
+
+    try {
+      // Pre-flight validation against current stock levels
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items,
+          customer_name: 'Pre-flight Validation',
+          customer_email: 'validation@aerotech.local',
+          total_amount: totalPrice(),
+          validate_only: true, // Marker for stock checks without finalizing orders
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'One or more items exceed available stock.');
+        setValidating(false);
+        return;
+      }
+
+      closeCart();
+      router.push('/checkout');
+    } catch {
+      // Direct navigation fallback on network blip
+      closeCart();
+      router.push('/checkout');
+    } finally {
+      setValidating(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -100,13 +137,18 @@ export default function CartDrawer() {
               </span>
             </div>
             <button 
-              onClick={() => {
-                closeCart();
-                router.push('/checkout');
-              }}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition"
+              onClick={handleProceedToCheckout}
+              disabled={validating}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
-              Proceed to Checkout
+              {validating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Verifying Stock...
+                </>
+              ) : (
+                'Proceed to Checkout'
+              )}
             </button>
           </div>
         )}

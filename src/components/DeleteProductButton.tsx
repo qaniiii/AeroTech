@@ -16,7 +16,7 @@ export default function DeleteProductButton({
 
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      `Are you sure you want to permanently delete "${productTitle}"? This cannot be undone.`
+      `Are you sure you want to permanently delete "${productTitle}"?`
     );
     if (!confirmed) return;
 
@@ -27,14 +27,15 @@ export default function DeleteProductButton({
         method: 'DELETE',
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || 'Failed to delete product');
       }
 
       router.refresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(`Delete Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
