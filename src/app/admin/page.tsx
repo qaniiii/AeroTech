@@ -20,7 +20,7 @@ export default async function AdminPage() {
   // 2. Fetch products including image_url and category_id for editing
   const { data: products } = await supabase
     .from('products')
-    .select('id, title, price, stock_quantity, slug, image_url, category_id')
+    .select('id, title, price, stock_quantity, slug, image, category_id')
     .order('stock_quantity', { ascending: true });
 
   // 3. Fetch categories for modal dropdowns

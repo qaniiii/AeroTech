@@ -31,7 +31,7 @@ export async function DELETE(
   return NextResponse.json({ success: true });
 }
 
-// 2. EDIT / UPDATE Product (Title, Price, Stock, Image URL)
+// 2. EDIT / UPDATE Product (Title, Price, Stock, Image, Category)
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -42,7 +42,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, price, stock_quantity, image_url, category_id } = body;
+  const { title, price, stock_quantity, image, category_id } = body;
 
   const { error } = await supabase
     .from('products')
@@ -50,7 +50,7 @@ export async function PATCH(
       title,
       price: Number(price),
       stock_quantity: Number(stock_quantity),
-      image_url,
+      image,
       category_id,
       updated_at: new Date().toISOString(),
     })

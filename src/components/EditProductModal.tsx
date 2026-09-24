@@ -9,7 +9,7 @@ interface Product {
   title: string;
   price: number;
   stock_quantity: number;
-  image_url?: string;
+  image?: string;
   category_id?: string;
 }
 
@@ -34,7 +34,7 @@ export default function EditProductModal({
     title: product.title,
     price: product.price,
     stock_quantity: product.stock_quantity,
-    image_url: product.image_url || '',
+    image_url: product.image || '',
     category_id: product.category_id || '',
   });
 
