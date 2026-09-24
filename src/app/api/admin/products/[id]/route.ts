@@ -8,7 +8,6 @@ async function verifyAdmin() {
   return token === 'authenticated_session_active';
 }
 
-// 1. DELETE Product
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,7 +30,6 @@ export async function DELETE(
   return NextResponse.json({ success: true });
 }
 
-// 2. EDIT / UPDATE Product (Title, Price, Stock, Image, Category)
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -42,7 +40,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, price, stock_quantity, image, category_id } = body;
+  const { title, price, stock_quantity, image_url, category_id } = body;
 
   const { error } = await supabase
     .from('products')
@@ -50,8 +48,8 @@ export async function PATCH(
       title,
       price: Number(price),
       stock_quantity: Number(stock_quantity),
-      image,
-      category_id,
+      images: image_url ? [image_url] : [],
+      category_id: category_id || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);
