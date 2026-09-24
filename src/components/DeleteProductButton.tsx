@@ -33,7 +33,9 @@ export default function DeleteProductButton({
         throw new Error(data.error || 'Failed to delete product');
       }
 
+      // Refresh data cache and re-render
       router.refresh();
+      window.location.reload();
     } catch (err: any) {
       alert(`Delete Error: ${err.message}`);
     } finally {

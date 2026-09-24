@@ -14,26 +14,50 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!(await verifyAdmin())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized: Admin session expired' }, { status: 401 });
   }
 
   const { id } = await params;
 
-  // Delete product record
-  const { error } = await supabase
-    .from('products')
-    .delete()
-    .eq('id', id);
+  try {
+    // 1. Delete associated order items first to satisfy foreign key constraints
+    const { error: itemsErr } = await supabase
+      .from('order_items')
+      .delete()
+      .eq('product_id', id);
 
-  if (error) {
-    console.error('DELETE product error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (itemsErr) {
+      console.warn('Warning: Could not clear related order_items:', itemsErr.message);
+    }
+
+    // 2. Delete the actual product and return the removed record
+    const { data, error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // If data is empty, Supabase RLS silently blocked the deletion
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { 
+          error: 'Product deletion blocked. Please verify that your Supabase RLS policy allows DELETE on the "products" table.' 
+        }, 
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json({ success: true, deleted: data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Server error deleting product' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }
 
-// 2. EDIT / UPDATE Product (Removed updated_at)
+// 2. EDIT / UPDATE Product
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -63,7 +87,6 @@ export async function PATCH(
     .eq('id', id);
 
   if (error) {
-    console.error('PATCH product error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
