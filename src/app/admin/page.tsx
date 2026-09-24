@@ -12,16 +12,15 @@ export const revalidate = 0;
 
 export default async function AdminPage() {
   // 1. Fetch live orders
-  const { data: orders } = await supabase
+  const { data: orders, error: ordersError } = await supabase
     .from('orders')
     .select('*, order_items(*, products(title))')
     .order('created_at', { ascending: false });
 
-  // 2. Fetch products including image_url and category_id for editing
-  const { data: products } = await supabase
+  // 2. Fetch all products with wildcard to prevent missing column errors
+  const { data: products, error: productsError } = await supabase
     .from('products')
-    .select('id, title, price, stock_quantity, slug, image, category_id')
-    .order('stock_quantity', { ascending: true });
+    .select('*');
 
   // 3. Fetch categories for modal dropdowns
   const { data: categories } = await supabase
@@ -29,15 +28,30 @@ export default async function AdminPage() {
     .select('id, name')
     .order('name', { ascending: true });
 
+  // If Supabase encounters a query error, display it directly on the screen
+  if (productsError) {
+    return (
+      <div className="max-w-4xl mx-auto my-12 p-6 bg-rose-950/40 border border-rose-800 text-rose-300 rounded-2xl font-mono text-xs space-y-3">
+        <h2 className="text-base font-bold text-rose-400">Database Query Failed: products</h2>
+        <pre className="bg-slate-950 p-4 rounded-xl overflow-x-auto text-[11px] text-rose-300 border border-rose-900/50">
+          {JSON.stringify(productsError, null, 2)}
+        </pre>
+        <p className="text-slate-400">
+          Tip: Check if RLS (Row Level Security) is blocking read access or if the table name differs.
+        </p>
+      </div>
+    );
+  }
+
   // 4. Compute KPI Metrics
   const totalOrders = orders?.length || 0;
   const totalRevenue = orders?.reduce((sum, order) => sum + Number(order.total_amount || 0), 0) || 0;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const lowStockCount = products?.filter((p) => p.stock_quantity < 10).length || 0;
+  const lowStockCount = products?.filter((p) => Number(p.stock_quantity ?? p.stock ?? 0) < 10).length || 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-      {/* Header (Duplicate Store button removed) */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <span className="text-xs uppercase tracking-widest text-emerald-400 font-semibold">
@@ -137,7 +151,7 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* Inventory Status Table with Edit & Delete Actions */}
+      {/* Inventory Status Table */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
         <div className="p-5 border-b border-slate-800 flex justify-between items-center">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -160,19 +174,20 @@ export default async function AdminPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
               {products?.map((prod) => {
-                const isLow = prod.stock_quantity < 10;
+                const stock = Number(prod.stock_quantity ?? prod.stock ?? 0);
+                const isLow = stock < 10;
                 return (
                   <tr key={prod.id} className="hover:bg-slate-800/30 transition">
                     <td className="px-5 py-3.5 font-medium text-white">
-                      <Link href={`/products/${prod.slug}`} className="hover:text-emerald-400 transition">
+                      <Link href={`/products/${prod.slug || prod.id}`} className="hover:text-emerald-400 transition">
                         {prod.title}
                       </Link>
                     </td>
                     <td className="px-5 py-3.5 text-slate-300 font-mono">
-                      ${Number(prod.price).toFixed(2)}
+                      ${Number(prod.price || 0).toFixed(2)}
                     </td>
                     <td className="px-5 py-3.5 font-semibold text-slate-200">
-                      {prod.stock_quantity} units
+                      {stock} units
                     </td>
                     <td className="px-5 py-3.5">
                       {isLow ? (
@@ -194,6 +209,14 @@ export default async function AdminPage() {
                   </tr>
                 );
               })}
+
+              {(!products || products.length === 0) && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-8 text-center text-slate-500">
+                    No products found in the database.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
