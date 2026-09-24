@@ -1,31 +1,35 @@
 import { supabase } from '@/lib/supabase';
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Package, ExternalLink } from 'lucide-react';
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Package } from 'lucide-react';
 import Link from 'next/link';
 import AdminOrderRow from '@/components/AdminOrderRow';
 import AddProductModal from '@/components/AddProductModal';
+import EditProductModal from '@/components/EditProductModal';
+import DeleteProductButton from '@/components/DeleteProductButton';
 import AdminLogoutButton from '@/components/AdminLogoutButton';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function AdminPage() {
-  // 1. Fetch live data
+  // 1. Fetch live orders
   const { data: orders } = await supabase
     .from('orders')
     .select('*, order_items(*, products(title))')
     .order('created_at', { ascending: false });
 
+  // 2. Fetch products including image_url and category_id for editing
   const { data: products } = await supabase
     .from('products')
-    .select('id, title, price, stock_quantity, slug')
+    .select('id, title, price, stock_quantity, slug, image_url, category_id')
     .order('stock_quantity', { ascending: true });
 
+  // 3. Fetch categories for modal dropdowns
   const { data: categories } = await supabase
     .from('categories')
     .select('id, name')
     .order('name', { ascending: true });
 
-  // 2. Compute KPI Metrics
+  // 4. Compute KPI Metrics
   const totalOrders = orders?.length || 0;
   const totalRevenue = orders?.reduce((sum, order) => sum + Number(order.total_amount || 0), 0) || 0;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
@@ -33,7 +37,7 @@ export default async function AdminPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-      {/* Header */}
+      {/* Header (Duplicate Store button removed) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <span className="text-xs uppercase tracking-widest text-emerald-400 font-semibold">
@@ -43,13 +47,6 @@ export default async function AdminPage() {
         </div>
         <div className="flex items-center gap-3">
           <AddProductModal categories={categories || []} />
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition"
-          >
-            <span>Store</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
           <AdminLogoutButton />
         </div>
       </div>
@@ -140,7 +137,7 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* Inventory Status Table */}
+      {/* Inventory Status Table with Edit & Delete Actions */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
         <div className="p-5 border-b border-slate-800 flex justify-between items-center">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -158,6 +155,7 @@ export default async function AdminPage() {
                 <th className="px-5 py-3">Price</th>
                 <th className="px-5 py-3">Remaining Stock</th>
                 <th className="px-5 py-3">Stock Health</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
@@ -186,6 +184,12 @@ export default async function AdminPage() {
                           Optimal
                         </span>
                       )}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <EditProductModal product={prod} categories={categories || []} />
+                        <DeleteProductButton productId={prod.id} productTitle={prod.title} />
+                      </div>
                     </td>
                   </tr>
                 );
