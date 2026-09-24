@@ -74,6 +74,7 @@ export async function PATCH(
     title,
     price: Number(price),
     stock_quantity: Number(stock_quantity),
+    description: description ?? '',
     images: image_url ? [image_url] : [],
   };
 
